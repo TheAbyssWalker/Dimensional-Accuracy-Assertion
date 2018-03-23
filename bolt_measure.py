@@ -2,6 +2,9 @@ import cv2
 import time
 import numpy as np
 
+cmPerPixel = 5.9/1104.0
+removeLastElements = 2
+removeFirstElements = 1
 
 def find_peak(th_row, th_col):
     start=time.time()
@@ -38,6 +41,7 @@ def find_peak(th_row, th_col):
         i += 1
     stop=time.time()-start
     print(stop)
+    print("sizep"+str(p_row.size))
     return p_row, p_column
 
 
@@ -120,6 +124,9 @@ img = cv2.imread('znap24.jpg')
 
 
 #img = img[380:600, 500:1550]
+img = cv2.imread('/home/theabysswalker/Documents/Dimensional-Accuracy-Assertion/znap5.jpg')
+
+#img = img[400:600, 500:1800]
 
 redChannel = img[:, :, 2]
 #redChannel = cv2.bilateralFilter(redChannel, 10, 100, 100)
@@ -128,8 +135,8 @@ retval,binaryImage = cv2.threshold(redChannel, 80, 255, cv2.THRESH_BINARY+cv2.TH
 
 thread_row = np.array([])
 thread_col = np.array([])
-top=0
-bottom=0
+top = 0
+bottom = 0
 #print(binaryImage.shape[0])
 #print(binaryImage.shape[1])
 
@@ -172,6 +179,11 @@ print("bolu's "+str(time.time()-stt))
 #print(temp)
 '''
 
+temp = np.diff(thread_row, 1)
+temp = np.where(temp < -50)
+print("Hello")
+print(temp)
+
 valley_row, valley_column = find_valley(thread_row, thread_col)
 
 peak_row, peak_column = find_peak(thread_row, thread_col)
@@ -179,9 +191,16 @@ peak_row, peak_column = find_peak(thread_row, thread_col)
 top = thread_col[0]
 bottom = thread_col[-1]
 
-print("No of pixels from top to bottom is {}".format((bottom - top)*5.9/1104))
+print("No of pixels from top to bottom is {}".format((bottom - top) * cmPerPixel))
 #print("Time is {}".format(stop-start))
-
+if valley_row.size > peak_row.size:
+    arr_length = peak_row.size
+else:
+    arr_length = valley_row.size
+valley_row = valley_row[removeFirstElements : arr_length - removeLastElements]
+valley_column = valley_column[removeFirstElements : arr_length - removeLastElements]
+peak_row = peak_row[removeFirstElements : arr_length - removeLastElements]
+peak_column = peak_column[removeFirstElements : arr_length - removeLastElements]
 
 print("Peaks:")
 print(peak_row)
@@ -196,6 +215,14 @@ print("their pos:")
 print(valley_column)
 print("valley diff")
 print(np.diff(valley_column,1)*5.9/1104)
+print("thread pitch")
+
+thread_pitch = np.mean(np.diff(peak_column, 1))
+thread_height = abs(np.mean(peak_row - valley_row))
+print(thread_pitch * cmPerPixel)
+print("thread height")
+print(thread_height * cmPerPixel)
+show_peak_valley(img, valley_row, valley_column, peak_row, peak_column)
 
 #peak_row,valley_row=glare_noise(peak_row,valley_row)
 stop=time.time()-start
