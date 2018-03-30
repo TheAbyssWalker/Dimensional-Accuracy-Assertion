@@ -1,7 +1,7 @@
-#import RPi.GPIO as GPIO
+import RPi.GPIO as GPIO
 import time
-#from picamera import PiCamera
-#from picamera.array import PiRGBArray
+from picamera import PiCamera
+from picamera.array import PiRGBArray
 import cv2
 import numpy as np
 
@@ -10,7 +10,7 @@ cmPerPixel = 5.9/1104.0
 checkWidth = 30
 removeLastElements = 3
 removeFirstElements = 2
-threadEnd = 50
+vthreadEnd = 50
 #####################################
 
 class Image:
@@ -22,8 +22,8 @@ class Image:
         self.is_pic_processed = False
 
     def take_image(self, camera, rawCapture):
-       # camera.capture(rawCapture, format='bgr')
-       # self.image = rawCapture.array
+        camera.capture(rawCapture, format='bgr')
+        self.image = rawCapture.array
         self.is_pic_taken = True
 
     def process_image(self):
