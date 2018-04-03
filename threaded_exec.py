@@ -13,6 +13,28 @@ removeFirstElements = 2
 vthreadEnd = 50
 #####################################
 
+GPIO.setmode(GPIO.BCM)
+ 
+enable_pin = 18
+coil_A_1_pin = 4
+coil_A_2_pin = 17
+coil_B_1_pin = 23
+coil_B_2_pin = 24
+laser_pin = 3
+ 
+GPIO.setup(enable_pin, GPIO.OUT)
+GPIO.setup(coil_A_1_pin, GPIO.OUT)
+GPIO.setup(coil_A_2_pin, GPIO.OUT)
+GPIO.setup(coil_B_1_pin, GPIO.OUT)
+GPIO.setup(coil_B_2_pin, GPIO.OUT)
+GPIO.setup(laser_pin, GPIO.OUT)
+
+camera = picamera.PiCamera()
+rawCapture = PiRGBArray(camera)
+time.sleep(0.1)
+
+GPIO.output(enable_pin, 1)
+ 
 class Image:
     processed_image_index = 0
 
@@ -25,15 +47,16 @@ class Image:
         camera.capture(rawCapture, format='bgr')
         self.image = rawCapture.array
         self.is_pic_taken = True
+        self.is_pic_processed = False
 
     def process_image(self):
        if self.is_pic_taken:
            print("Hello")
            if not self.is_pic_processed:
                 if not process(self.image):
-                    print("Error in measuring bolt dimensions")
+                    print("Not Done")
                 else:
-                    print("hello")
+                    print("processed")
                     self.is_pic_processed = True
 
 
@@ -83,8 +106,8 @@ def find_peak(th_row, th_col):
             break
         i += 1
     stop=time.time()-start
-    print(stop)
-    print("sizep"+str(p_row.size))
+    #print(stop)
+    #print("sizep"+str(p_row.size))
     return p_row, p_column
 
 
@@ -122,13 +145,12 @@ def find_valley(th_row, th_col):
             break
         i += 1
     stop=time.time()-start
-    print(stop)
+    #print(stop)
     return v_row, v_column
 
 
 
 def process(bolt_image):
-    print("hello")
     retval, binaryImage = cv2.threshold(bolt_image[:,:,2], 80, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     thread_row = np.array([])
     thread_col = np.array([])
@@ -163,16 +185,46 @@ def process(bolt_image):
 
     thread_pitch = np.mean(np.diff(peak_col, 1))
     thread_height = np.mean(peak_row - valley_row)
-    show_peak_valley(bolt_image, valley_row, valley_col, peak_row, peak_col)
+    #show_peak_valley(bolt_image, valley_row, valley_col, peak_row, peak_col)
+    print("Thread pitch is " + str(thread_pitch))
+    print("Length of bolt is " + str(length_of_bolt))
+    print("Thread Height is " + str(thread_height))
+    #cv2.waitKey(0)
+    #cv2.destroyAllWindows()
+    return True
 
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+def setStep(w1, w2, w3, w4):
+    GPIO.output(coil_A_1_pin, w1)
+    GPIO.output(coil_A_2_pin, w2)
+    GPIO.output(coil_B_1_pin, w3)
+    GPIO.output(coil_B_2_pin, w4)
 
-
+def main_loop(image_obj):
+    delay_rotate = 5/1000.0
+    for i in range(0, 25):
+        fourStepForward(delay_rotate)
+        setStep(0, 0, 0, 0)
+        GPIO.output(laser_pin, True)
+        image_obj.take_image()
+        GPIO.output(laser_pin, False)
+        image_obj.process_image()
+        #time.sleep(1)
+    
+def fourStepForward(delay):
+    for i in range(0, 40):
+        setStep(1, 0, 1, 0)
+        time.sleep(delay)
+        setStep(0, 1, 1, 0)
+        time.sleep(delay)
+        setStep(0, 1, 0, 1)
+        time.sleep(delay)
+        setStep(1, 0, 0, 1)
+        time.sleep(delay)
 
 
 image_obj = Image()
+main_loop(iamge_obj)
 #image_obj.take_image()
-image_obj.image = cv2.imread('/home/theabysswalker/Documents/Dimensional-Accuracy-Assertion/znap5.jpg')
+#image_obj.image = cv2.imread('/home/theabysswalker/Documents/Dimensional-Accuracy-Assertion/znap5.jpg')
 cv2.imshow("asd",image_obj.image)
 image_obj.process_image()

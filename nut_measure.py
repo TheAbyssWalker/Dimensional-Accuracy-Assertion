@@ -51,7 +51,7 @@ img = cv2.imread('/home/theabysswalker/Documents/Dimensional-Accuracy-Assertion/
 
 #img = img[400:600, 500:1800]
 
-redChannel = img[:, 360 :, 2]
+redChannel = img[:, :, 2]
 
 #redChannel = cv2.bilateralFilter(redChannel, 10, 100, 100)
 
@@ -63,15 +63,20 @@ top = 0
 bottom = 0
 #print(binaryImage.shape[0])
 #print(binaryImage.shape[1])
+first_half = binaryImage[:, :360]
+rownonzero_pos,colnonzero_pos = first_half.nonzero()
+last_col = max(colnonzero_pos)
+nut_col = first_half[:, last_col]
+last_row = np.where(nut_col != 0)[0][0]
+cv2.circle(img, (last_col, last_row), 1, (0, 255, 0), -1)
+cv2.imshow("val", img)
 
-rownonzero_pos,colnonzero_pos=binaryImage.nonzero()
-width = max(colnonzero_pos)
 height = max(rownonzero_pos)
 
-mini_col=min(colnonzero_pos)-50
-mini_row=min(rownonzero_pos)-50
+mini_col=min(colnonzero_pos)
+mini_row=min(rownonzero_pos)
 print("min "+str(mini_col) + " " +str(mini_row))
-print("min "+str(width) + " " +str(height))
+#print("min "+str(width) + " " +str(height))
 
 if(mini_row<0):mini_row=0
 if(mini_col<0):mini_col=0
@@ -92,7 +97,7 @@ print(nut_thread_row)
 print(nut_thread_col)
 print(sol/(nut_thread_row.shape[0]-1))
 print(time.time() - stt)
-show_peak_valley(img[:,360:,:], binaryImage, centroids)
+show_peak_valley(img, binaryImage, centroids)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 
