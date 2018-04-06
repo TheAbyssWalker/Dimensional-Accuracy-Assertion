@@ -6,6 +6,10 @@ import math
 cmPerPixel = 5.6/320.0
 removeLastElements = 1
 removeFirstElements = 1
+minWhitePixels = 1000
+
+imageCount = 0
+finalPitch = 0
 
 def find_peak(th_row, th_col):
     start=time.time()
@@ -31,6 +35,7 @@ def find_peak(th_row, th_col):
                 if first_time:
                     first_time = False
                 elif p_row[-1] - th_row[i] > 30:
+                    print("peak thread length is " + str(th_col[i] - th_col[0]))
                     end_flag = True
                     break
                 p_row = np.append(p_row, th_row[i])
@@ -70,8 +75,8 @@ def find_valley(th_row, th_col):
                 if first_time:
                     first_time = False
                 elif (v_row[-1] - th_row[i]) > 30:
-                        end_flag = True
-                        break
+                    end_flag = True
+                    break
                 v_row = np.append(v_row, th_row[i])
                 v_column = np.append(v_column, th_col[i])
                 i += check_width - 5
@@ -141,8 +146,10 @@ for index in range(25):
     bottom = 0
     #print(binaryImage.shape[0])
     #print(binaryImage.shape[1])
-
-    rownonzero_pos,colnonzero_pos=binaryImage.nonzero()
+    print("non zero " + str(np.count_nonzero(binaryImage)))
+    if np.count_nonzero(binaryImage) < minWhitePixels:
+        continue
+    rownonzero_pos,colnonzero_pos=np.nonzero(binaryImage)
     width = max(colnonzero_pos)
     height = max(rownonzero_pos)
 
@@ -200,6 +207,9 @@ for index in range(25):
 
     thread_pitch = np.diff(peak_column, 1)
     thread_pitch = np.mean(thread_pitch)
+    if thread_pitch * cmPerPixel < .36:
+        finalPitch = finalPitch + thread_pitch
+        imageCount += 1
     thread_height = peak_row - valley_row
     thread_height = abs(np.mean(thread_height))
     print(thread_pitch * cmPerPixel)
@@ -210,6 +220,7 @@ for index in range(25):
 #peak_row,valley_row=glare_noise(peak_row,valley_row)
 stop=time.time()-start
 print("total time",stop)
+print(finalPitch/imageCount *cmPerPixel)
 #cv2.imshow('org', redChannel)
 #cv2.imshow('otsu', binaryImage)
 
