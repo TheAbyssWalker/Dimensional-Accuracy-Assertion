@@ -7,11 +7,12 @@ import numpy as np
 
 ######## Fill constants here ########
 cmPerPixel = 5.9/1104.0
-checkWidth = 30
-removeLastElements = 3
+checkWidth = 10
+removeLastElements = 2
 removeFirstElements = 2
-threadEnd = 50
+threadEnd = 35
 totalImages = 32
+totalSteps = 512
 #####################################
 
 GPIO.setmode(GPIO.BCM)
@@ -30,8 +31,8 @@ GPIO.setup(coil_B_1_pin, GPIO.OUT)
 GPIO.setup(coil_B_2_pin, GPIO.OUT)
 GPIO.setup(laser_pin, GPIO.OUT)
 
-camera = picamera.PiCamera()
-camera.resolution = (1920, 1080)
+camera = PiCamera()
+#camera.resolution = (1920, 1088)
 #camera.framerate = (1, 10)
 #camera.shutter_speed = 10000
 #camera.exposure_mode = 'off'
@@ -48,13 +49,15 @@ class Image:
         self.is_pic_taken = True
         self.is_pic_processed = False
 
-    def take_image(self, camera, rawCapture):
+    def take_image(self):
         camera.capture(rawCapture, format='bgr')
         self.image = rawCapture.array
         self.is_pic_taken = True
         self.is_pic_processed = False
+        rawCapture.truncate()
+        rawCapture.seek(0)
 
-    def process_image(self):
+    def process_image(self, index):
        if self.is_pic_taken:
            print("Hello")
            if not self.is_pic_processed:
@@ -159,7 +162,7 @@ def process(bolt_image, index):
     retval, binaryImage = cv2.threshold(bolt_image[:,:,2], 80, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     thread_row = np.array([])
     thread_col = np.array([])
-
+    cv2.imshow("bin", binaryImage)
     nonz_r, nonz_c = binaryImage.nonzero()
     last_col = max(nonz_c)
     first_col = min(nonz_c)
@@ -185,12 +188,14 @@ def process(bolt_image, index):
     valley_col = valley_col[removeFirstElements : arr_length - removeLastElements]
     peak_row = peak_row[removeFirstElements : arr_length - removeLastElements]
     peak_col = peak_col[removeFirstElements : arr_length - removeLastElements]
-
+    
+    print("thread peak greter than half")
+    print(peak_row[np.where(peak_row > 540)])
     length_of_bolt = np.abs(thread_col[0] - thread_col[-1])
 
     thread_pitch = np.mean(np.diff(peak_col, 1))
-    thread_height = np.mean(peak_row - valley_row)
-    show_peak_valley(bolt_image, valley_row, valley_col, peak_row, peak_col, index)
+    thread_height = abs(np.mean(peak_row - valley_row))
+    #show_peak_valley(bolt_image, valley_row, valley_col, peak_row, peak_col, index)
     print("Thread pitch is " + str(thread_pitch))
     print("Length of bolt is " + str(length_of_bolt))
     print("Thread Height is " + str(thread_height))
@@ -207,17 +212,18 @@ def setStep(w1, w2, w3, w4):
 def main_loop(image_obj):
     delay_rotate = 5/1000.0
     for index in range(0, totalImages):
-        fourStepForward(delay_rotate)
+        eachStep(delay_rotate)
         setStep(0, 0, 0, 0)
         GPIO.output(laser_pin, True)
+        time.sleep(0.05)
         image_obj.take_image()
         GPIO.output(laser_pin, False)
-        print("index " + str(i))
+        print("index " + str(index))
         image_obj.process_image(index)
         #time.sleep(1)
     
-def fourStepForward(delay):
-    fourStepRotations = totalSteps / (4 * totalImages)
+def eachStep(delay):
+    fourStepRotations = int(totalSteps / (4 * totalImages))
     for i in range(0, fourStepRotations):
         setStep(1, 0, 1, 0)
         time.sleep(delay)
@@ -229,9 +235,13 @@ def fourStepForward(delay):
         time.sleep(delay)
 
 
+start = time.time()
 image_obj = Image()
 main_loop(image_obj)
+print("time " +str(time.time() - start))
 #image_obj.take_image()
 #image_obj.image = cv2.imread('/home/theabysswalker/Documents/Dimensional-Accuracy-Assertion/znap5.jpg')
-cv2.imshow("asd",image_obj.image)
-image_obj.process_image()
+#cv2.imshow("asd",image_obj.image)
+#image_obj.process_image()
+#cv2.waitKey(0)
+#cv2.destroyAllWindows()

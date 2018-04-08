@@ -128,7 +128,7 @@ def show_peak_valley(img, v_row, v_column, p_row, p_column, index):
 start=time.time()
 #img = cv2.imread('znap24.jpg')
 for index in range(25):
-    filename = '/home/theabysswalker/Documents/Dimensional-Accuracy-Assertion/images/znap'+str(index)+'.jpg'
+    filename = '/home/pi/Documents/Dimensional-Accuracy-Assertion/images/znap'+str(index)+'.jpg'
     print(filename)
     #img = img[380:600, 500:1550]
     img = cv2.imread(filename)
