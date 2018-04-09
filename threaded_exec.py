@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 
 ######## Fill constants here ########
-cmPerPixel = 5.9/1104.0
+cmPerPixel = 1/162.51
 checkWidth = 10
 removeLastElements = 2
 removeFirstElements = 2
@@ -32,12 +32,16 @@ GPIO.setup(coil_B_2_pin, GPIO.OUT)
 GPIO.setup(laser_pin, GPIO.OUT)
 
 camera = PiCamera()
-#camera.resolution = (1920, 1088)
+camera.resolution = (1920, 1088)
 #camera.framerate = (1, 10)
 #camera.shutter_speed = 10000
 #camera.exposure_mode = 'off'
 rawCapture = PiRGBArray(camera)
 time.sleep(0.1)
+camera.capture(rawCapture, format="bgr")
+rawCapture.truncate()
+rawCapture.seek(0)
+time.sleep(1)
 
 GPIO.output(enable_pin, 1)
  
@@ -103,7 +107,7 @@ def find_peak(th_row, th_col):
                 if first_time:
                     first_time = False
                 elif p_row[-1] - th_row[i] > threadEnd:
-                    print("thread length is " + str(th_col[i] - th_col[0]))
+                    #print("thread length is " + str((th_col[i] - th_col[0])*cmPerPixel))
                     end_flag = True
                     break
                 p_row = np.append(p_row, th_row[i])
@@ -159,10 +163,16 @@ def find_valley(th_row, th_col):
 
 
 def process(bolt_image, index):
+    #bolt_image = cv2.medianBlur(bolt_image, 3)
     retval, binaryImage = cv2.threshold(bolt_image[:,:,2], 80, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     thread_row = np.array([])
     thread_col = np.array([])
-    cv2.imshow("bin", binaryImage)
+    #kernel = np.ones((3, 3))
+    #binaryImage = cv2.morphologyEx(binaryImage, cv2.MORPH_OPEN, kernel)
+    #cv2.imshow("bin", binaryImage)
+    #cv2.waitKey(0)
+    #cv2.destroyAllWindows()
+    #print("nonzero " +str(np.count_nonzero(binaryImage)))
     nonz_r, nonz_c = binaryImage.nonzero()
     last_col = max(nonz_c)
     first_col = min(nonz_c)
@@ -178,7 +188,8 @@ def process(bolt_image, index):
 
     valley_row, valley_col = find_valley(thread_row, thread_col)
     peak_row, peak_col = find_peak(thread_row, thread_col)
-
+    thread_diff = np.where(np.diff(thread_col, 1) > 50)
+    print(thread_diff)
     if valley_row.size > peak_row.size:
         arr_length = peak_row.size
     else:
@@ -188,17 +199,17 @@ def process(bolt_image, index):
     valley_col = valley_col[removeFirstElements : arr_length - removeLastElements]
     peak_row = peak_row[removeFirstElements : arr_length - removeLastElements]
     peak_col = peak_col[removeFirstElements : arr_length - removeLastElements]
-    
-    print("thread peak greter than half")
-    print(peak_row[np.where(peak_row > 540)])
+    print(peak_row)
+    #print("thread peak greter than half")
+    #print(peak_row[np.where(peak_row > 540)])
     length_of_bolt = np.abs(thread_col[0] - thread_col[-1])
 
     thread_pitch = np.mean(np.diff(peak_col, 1))
     thread_height = abs(np.mean(peak_row - valley_row))
     #show_peak_valley(bolt_image, valley_row, valley_col, peak_row, peak_col, index)
-    print("Thread pitch is " + str(thread_pitch))
-    print("Length of bolt is " + str(length_of_bolt))
-    print("Thread Height is " + str(thread_height))
+    print("Thread pitch is " + str(thread_pitch*cmPerPixel))
+    print("Length of bolt is " + str(length_of_bolt*cmPerPixel))
+    print("Thread Height is " + str(thread_height*cmPerPixel))
     #cv2.waitKey(0)
     #cv2.destroyAllWindows()
     return True
@@ -215,10 +226,12 @@ def main_loop(image_obj):
         eachStep(delay_rotate)
         setStep(0, 0, 0, 0)
         GPIO.output(laser_pin, True)
-        time.sleep(0.05)
+        time.sleep(0.02)
         image_obj.take_image()
         GPIO.output(laser_pin, False)
+        time.sleep(0.02)
         print("index " + str(index))
+        #if(index < 2):
         image_obj.process_image(index)
         #time.sleep(1)
     
