@@ -13,6 +13,7 @@ removeFirstElements = 2
 threadEnd = 35
 totalImages = 32
 totalSteps = 512
+cosLaserAngle = math.cos(math.radians(65))
 #####################################
 
 GPIO.setmode(GPIO.BCM)
@@ -44,7 +45,9 @@ rawCapture.seek(0)
 time.sleep(1)
 
 GPIO.output(enable_pin, 1)
- 
+
+radius = np.array([], dtype=int)
+
 class Image:
     processed_image_index = 0
 
@@ -63,7 +66,7 @@ class Image:
 
     def process_image(self, index):
        if self.is_pic_taken:
-           print("Hello")
+           #print("Hello")
            if not self.is_pic_processed:
                 if process(self.image, index):
                     print("processed")
@@ -200,6 +203,12 @@ def process(bolt_image, index):
     peak_row = peak_row[removeFirstElements : arr_length - removeLastElements]
     peak_col = peak_col[removeFirstElements : arr_length - removeLastElements]
     print(peak_row)
+
+    if(index < totalImages / 2):
+        radius_array = np.append(radius, halfHeight - peak_row[0])
+    else:
+        radius_array[index % (totalImages / 2)] += halfHeight - peak_row[0]
+
     #print("thread peak greter than half")
     #print(peak_row[np.where(peak_row > 540)])
     length_of_bolt = np.abs(thread_col[0] - thread_col[-1])
@@ -226,17 +235,17 @@ def main_loop(image_obj):
         eachStep(delay_rotate)
         setStep(0, 0, 0, 0)
         GPIO.output(laser_pin, True)
-        time.sleep(0.02)
+        time.sleep(0.01)
         image_obj.take_image()
         GPIO.output(laser_pin, False)
-        time.sleep(0.02)
+        time.sleep(0.05)
         print("index " + str(index))
         #if(index < 2):
         image_obj.process_image(index)
         #time.sleep(1)
     
 def eachStep(delay):
-    fourStepRotations = int(totalSteps / (4 * totalImages))
+    fourStepRotations = int(totalSteps / totalImages)
     for i in range(0, fourStepRotations):
         setStep(1, 0, 1, 0)
         time.sleep(delay)
@@ -251,6 +260,9 @@ def eachStep(delay):
 start = time.time()
 image_obj = Image()
 main_loop(image_obj)
+radius = np.mean(radius_array)
+radiusInCm = radius * cmPerPixel / cosLaserAngle
+print("Radius of bolt " + str(radiusInCm))
 print("time " +str(time.time() - start))
 #image_obj.take_image()
 #image_obj.image = cv2.imread('/home/theabysswalker/Documents/Dimensional-Accuracy-Assertion/znap5.jpg')
