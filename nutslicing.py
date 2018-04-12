@@ -4,11 +4,44 @@ Created on Tue Mar  6 18:26:23 2018
 
 @author: Rahul
 """
-
+import RPi.GPIO as GPIO
+from picamera import PiCamera
+from picamera.array import PiRGBArray
 import cv2
 import time
 import numpy as np
 import math
+
+GPIO.setmode(GPIO.BCM)
+ 
+enable_pin = 18
+coil_A_1_pin = 4
+coil_A_2_pin = 17
+coil_B_1_pin = 23
+coil_B_2_pin = 24
+laser_pin = 3
+ 
+GPIO.setup(enable_pin, GPIO.OUT)
+GPIO.setup(coil_A_1_pin, GPIO.OUT)
+GPIO.setup(coil_A_2_pin, GPIO.OUT)
+GPIO.setup(coil_B_1_pin, GPIO.OUT)
+GPIO.setup(coil_B_2_pin, GPIO.OUT)
+GPIO.setup(laser_pin, GPIO.OUT)
+
+camera = PiCamera()
+camera.resolution = (1920, 1088)
+#camera.framerate = (1, 10)
+#camera.shutter_speed = 10000
+#camera.exposure_mode = 'off'
+rawCapture = PiRGBArray(camera)
+time.sleep(0.1)
+camera.capture(rawCapture, format="bgr")
+rawCapture.truncate()
+rawCapture.seek(0)
+time.sleep(1)
+
+GPIO.output(enable_pin, 1)
+
 
 check = 5
 sliceWidth = 326
@@ -57,7 +90,15 @@ def show_peak_valley(img, bina, th_row, th_col):
     cv2.imshow("valleysssss", img)
 
 
-img = cv2.imread('nut2.jpg')
+radius_orig = float(input('Enter radius of the Bolt in cm: '))
+pitch_orig = float(input('Enter pitch of the Bolt in cm: '))
+camera.capture('nut_hell.jpg')
+img = cv2.imread('nut_hell.jpg')
+#        is_pic_taken = True
+#        is_pic_processed = False
+rawCapture.truncate()
+rawCapture.seek(0)
+
 
 #img = img[400:600, 500:1800]
 
@@ -66,7 +107,11 @@ redChannel = img[:, :, 2]
 #redChannel = cv2.bilateralFilter(redChannel, 10, 100, 100)
 
 retval,binaryImage = cv2.threshold(redChannel, 80, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-
+kernel = np.ones((3, 3))
+binaryImage = cv2.morphologyEx(binaryImage, cv2.MORPH_OPEN, kernel)
+cv2.imshow("val", binaryImage)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
 thread_row = np.array([])
 thread_col = np.array([])
 top = 0
@@ -75,16 +120,17 @@ bottom = 0
 #print(binaryImage.shape[1])
 slicewidth_col=np.sort(binaryImage.nonzero()[1])
 for i in range(0,len(slicewidth_col)):
-    if(slicewidth_col[i]-slicewidth_col[i-1]>50):
+    if(slicewidth_col[i]-slicewidth_col[i-1]>30):
         sliceWidth=(int((slicewidth_col[i]+slicewidth_col[i-1])/2))
-        
+print(sliceWidth) 
 first_half = binaryImage[:, :sliceWidth]
 second_half = binaryImage[:, sliceWidth:]
 rownonzero_pos,colnonzero_pos = first_half.nonzero()
 last_col = max(colnonzero_pos)
 nut_col = first_half[:, last_col]
 last_row = np.where(nut_col != 0)[0][0]
-print("last row " + str(last_row))
+#print("last row " + str(last_row))
+pix = np.array([])
 for i in range(check):
     sec_col = second_half[last_row + i, :]
     #print(str(i)+"th row down")
@@ -108,8 +154,10 @@ for i in range(check):
         c = pix[0]
         cv2.circle(img[:, sliceWidth:], (c, r),1, (255,0,0),-1)
         break
- 
-print(pix[0] + sliceWidth - last_col)
+
+cmPerPixel = 1/153.16
+print("radius")
+print((pix[0] + sliceWidth - last_col)*cmPerPixel)
 
 cv2.circle(img, (last_col, last_row), 1, (0, 255, 0), -1)
 cv2.imshow("val", img)
@@ -118,7 +166,7 @@ height = max(rownonzero_pos)
 
 mini_col=min(colnonzero_pos)
 mini_row=min(rownonzero_pos)
-print("min "+str(mini_col) + " " +str(mini_row))
+#print("min "+str(mini_col) + " " +str(mini_row))
 #print("min "+str(width) + " " +str(height))
 
 if(mini_row<0):mini_row=0
@@ -136,12 +184,15 @@ for i in range(centroids.shape[0]):
 dist = np.array([])
 for i in range(nut_thread_row.shape[0]-1):
     dist = np.append(dist, math.sqrt((nut_thread_row[i] - nut_thread_row[i+1])**2 + (nut_thread_col[i] - nut_thread_col[i+1])**2))
-print("nut thread")
-print(nut_thread_row)
-print(nut_thread_col)
-print("here it is")
-print(second_half[nut_thread_col, nut_thread_row])
-print(np.median(dist))
+print("nut pitch")
+#print(nut_thread_row)
+#print(nut_thread_col)
+#print("here it is")
+#print(second_half[nut_thread_col, nut_thread_row])
+sinLaserAngle = math.sin(math.radians(55.54))
+cmPerPixel = 1/85.43
+#print(dist)
+print(np.median(dist)*cmPerPixel)#/sinLaserAngle)
 print(time.time() - stt)
 show_peak_valley(img[:, sliceWidth:], binaryImage, nut_thread_row, nut_thread_col)
 cv2.waitKey(0)
