@@ -11,7 +11,7 @@ import numpy as np
 import math
 
 check = 5
-sliceWidth = 326
+#sliceWidth = 326
 def find_peak(th_row, th_col):
     
     rows = th_row.shape[0]
